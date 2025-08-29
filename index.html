@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TSD Distance Player – km/s (60:100)</title>
+  <style>
+    html,body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;margin:0;background:#0b0b0c;color:#eaeaea}
+    .wrap{max-width:720px;margin:24px auto;padding:16px}
+    h1{font-size:20px;margin:0 0 12px}
+    .card{background:#141416;border:1px solid #2a2b2f;border-radius:14px;padding:16px;margin-bottom:14px}
+    label{display:block;font-size:14px;margin-bottom:6px;color:#c9c9cf}
+    input[type="number"]{width:100%;padding:10px 12px;border:1px solid #2a2b2f;border-radius:10px;background:#101114;color:#fff;font-size:16px;outline:none}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .row>*{flex:1}
+    .btn{appearance:none;border:1px solid #2a2b2f;background:#1a1b1f;color:#fff;padding:10px 14px;border-radius:10px;font-size:14px;cursor:pointer}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .btn.primary{background:#3358ff}
+    .stat{display:grid;grid-template-columns:1fr auto;gap:6px;padding:8px 0;border-bottom:1px dashed #2a2b2f}
+    .stat:last-child{border-bottom:none}
+    .key{color:#c9c9cf}
+    .val{font-variant-numeric:tabular-nums}
+    .muted{color:#9aa0a6;font-size:12px}
+    .switch{display:flex;align-items:center;gap:8px;margin-top:8px}
+    .switch input{width:18px;height:18px}
+    .pill{display:inline-block;padding:2px 8px;border:1px solid #2a2b2f;border-radius:999px;background:#121318;color:#c9c9cf;font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>TSD Distance Player – km/s (60:100)</h1>
+    <div class="card">
+      <label for="speed">Kecepatan tetap (kilometer per detik)</label>
+      <input id="speed" type="number" min="0" step="0.0001" placeholder="mis. 0.010000 (≈36 km/jam)" />
+      <div class="switch">
+        <input id="scale" type="checkbox" checked />
+        <label for="scale" style="margin:0">Skala waktu <span class="pill">60 : 100</span> aktif</label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="start" class="btn primary">Mulai</button>
+        <button id="pause" class="btn">Jeda</button>
+        <button id="reset" class="btn">Reset</button>
+      </div>
+      <div class="muted" style="margin-top:8px">Tekan <strong>Enter</strong> setelah mengisi kecepatan untuk mulai.</div>
+    </div>
+
+    <div class="card">
+      <div class="stat"><div class="key">Detik (real)</div><div class="val" id="tReal">0.0 s</div></div>
+      <div class="stat"><div class="key">Detik (rally, 60→100)</div><div class="val" id="tRally">0.0 s</div></div>
+      <div class="stat"><div class="key">Jarak total</div><div class="val" id="sKm">0.000 km</div></div>
+      <div class="stat"><div class="key">Jarak total</div><div class="val" id="sM">0 m</div></div>
+      <div class="stat"><div class="key">Laju (input)</div><div class="val" id="v">0.000000 km/s</div></div>
+    </div>
+
+    <div class="muted">Rumus: s = v × t<sub>rally</sub>, dengan t<sub>rally</sub> = t<sub>real</sub> × (100/60) jika skala aktif.</div>
+  </div>
+
+  <script>
+    const el = id => document.getElementById(id);
+
+    const speedInput = el('speed');
+    const scaleChk    = el('scale');
+    const startBtn    = el('start');
+    const pauseBtn    = el('pause');
+    const resetBtn    = el('reset');
+
+    const tRealEl  = el('tReal');
+    const tRallyEl = el('tRally');
+    const sKmEl    = el('sKm');
+    const sMEl     = el('sM');
+    const vEl      = el('v');
+
+    const SCALE = 100/60; // 1.666666...
+
+    let started = false;
+    let paused  = false;
+    let t0 = 0;             // ms, start time real
+    let accPause = 0;       // ms, accumulated paused duration
+    let tPauseStart = 0;    // ms, when pause started
+
+    let v_km_s = 0;         // locked speed at start
+
+    function fmt(n, digits){
+      return Number(n).toFixed(digits);
+    }
+
+    function now(){ return performance.now(); }
+
+    function realSeconds(){
+      if(!started) return 0;
+      const base = now() - t0 - accPause;
+      return Math.max(0, base/1000);
+    }
+
+    function rallySeconds(){
+      const t = realSeconds();
+      return t * (scaleChk.checked ? SCALE : 1);
+    }
+
+    function distanceKm(){
+      return v_km_s * rallySeconds();
+    }
+
+    let timer = null;
+    function tick(){
+      const tr = realSeconds();
+      const ty = rallySeconds();
+      const s  = distanceKm();
+      tRealEl.textContent  = fmt(tr,1) + ' s';
+      tRallyEl.textContent = fmt(ty,1) + ' s';
+      sKmEl.textContent    = fmt(s,3) + ' km';
+      sMEl.textContent     = Math.round(s*1000) + ' m';
+      vEl.textContent      = fmt(v_km_s,6) + ' km/s';
+    }
+
+    function start(){
+      if(started && paused){
+        // resume
+        paused = false;
+        accPause += (now() - tPauseStart);
+        loop();
+        return;
+      }
+      if(started) return; // already running
+      const v = parseFloat(speedInput.value);
+      if(!(v >= 0)){
+        alert('Masukkan angka kecepatan yang valid (km/s).');
+        return;
+      }
+      v_km_s = v; // lock speed at start
+      started = true; paused = false; accPause = 0; t0 = now();
+      loop();
+    }
+
+    function loop(){
+      clearInterval(timer);
+      timer = setInterval(tick, 1000); // update tiap detik real
+      tick();
+    }
+
+    function pause(){
+      if(!started || paused) return;
+      paused = true;
+      tPauseStart = now();
+      clearInterval(timer);
+      tick();
+    }
+
+    function reset(){
+      started = false; paused = false; v_km_s = 0; t0 = 0; accPause = 0; tPauseStart = 0;
+      clearInterval(timer);
+      tRealEl.textContent = '0.0 s';
+      tRallyEl.textContent = '0.0 s';
+      sKmEl.textContent = '0.000 km';
+      sMEl.textContent = '0 m';
+      vEl.textContent = '0.000000 km/s';
+    }
+
+    // UI wiring
+    startBtn.addEventListener('click', start);
+    pauseBtn.addEventListener('click', pause);
+    resetBtn.addEventListener('click', reset);
+
+    speedInput.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter') start();
+    });
+  </script>
+</body>
+</html>
