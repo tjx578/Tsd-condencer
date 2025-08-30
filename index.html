@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TSD Distance Player – km/jam → km/detik (60:100)</title>
+  <style>
+    html,body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;margin:0;background:#0b0b0c;color:#eaeaea}
+    .wrap{max-width:880px;margin:24px auto;padding:16px}
+    h1{font-size:20px;margin:0 0 12px}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+    .card{background:#141416;border:1px solid #2a2b2f;border-radius:14px;padding:16px;margin-bottom:14px}
+    label{display:block;font-size:13px;margin-bottom:6px;color:#c9c9cf}
+    input[type="number"],input[type="text"]{width:100%;padding:10px 12px;border:1px solid #2a2b2f;border-radius:10px;background:#101114;color:#fff;font-size:16px;outline:none}
+    .btn{appearance:none;border:1px solid #2a2b2f;background:#1a1b1f;color:#fff;padding:10px 14px;border-radius:10px;font-size:14px;cursor:pointer}
+    .btn.primary{background:#3358ff}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .stat{display:grid;grid-template-columns:1fr auto;gap:6px;padding:8px 0;border-bottom:1px dashed #2a2b2f}
+    .stat:last-child{border-bottom:none}
+    .key{color:#c9c9cf}
+    .val{font-variant-numeric:tabular-nums}
+    .muted{color:#9aa0a6;font-size:12px}
+    .switch{display:flex;align-items:center;gap:8px;margin-top:8px}
+    .switch input{width:18px;height:18px}
+    .pill{display:inline-block;padding:2px 8px;border:1px solid #2a2b2f;border-radius:999px;background:#121318;color:#c9c9cf;font-size:12px}
+    .warn{color:#ffd166}
+    .ok{color:#7ad47a}
+    .sub-section{margin-bottom: 24px;}
+    .sub-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+    .sub-header{font-size:15px;margin:0 0 8px}
+    .sub-result{margin-top:12px;padding:10px 14px;background:#121318;border-radius:8px;border:1px solid #23232a}
+    .formula{font-size:12px;color:#9aa0a6;margin-top:4px}
+    .sub-warn{color:#ffd166;font-size:13px}
+    .sub-ok{color:#7ad47a;font-size:13px}
+    .sub-label{font-size:13px;margin-bottom:6px;color:#bdbdc7}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>TSD Distance Player – km/jam → km/detik (60:100)</h1>
+
+    <!-- Sub Trayek Section -->
+    <div class="card sub-section">
+      <div class="sub-header"><b>Sub Trayek / Cek Waktu Resmi di Jarak Odo</b></div>
+      <div class="sub-grid">
+        <div style="grid-column: span 3">
+          <label class="sub-label" for="subDist">Jarak Sub (km)</label>
+          <input id="subDist" type="number" min="0" step="0.001" placeholder="mis. 9.800" />
+        </div>
+        <div style="grid-column: span 3">
+          <label class="sub-label" for="subTimeMin">Waktu Sub (menit, opsional)</label>
+          <input id="subTimeMin" type="number" min="0" step="0.01" placeholder="mis. 32.58" />
+        </div>
+        <div style="grid-column: span 3">
+          <label class="sub-label" for="subSpeedKmh">Kecepatan Sub (km/jam)</label>
+          <input id="subSpeedKmh" type="number" min="0" step="0.01" placeholder="mis. 18.04" />
+        </div>
+        <div style="grid-column: span 3">
+          <label class="sub-label" for="subStartTime">Waktu Mulai Sub (HH:mm/ss)</label>
+          <input id="subStartTime" type="text" placeholder="mis. 09:17" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="subComputeBtn" class="btn primary">Hitung Sub</button>
+      </div>
+      <div id="subResult" class="sub-result" style="display:none"></div>
+    </div>
+
+    <!-- Main Section -->
+    <div class="card">
+      <div class="grid">
+        <div style="grid-column: span 4">
+          <label for="dist">Jarak sub (kilometer)</label>
+          <input id="dist" type="number" min="0" step="0.001" placeholder="mis. 9.650" />
+        </div>
+        <div style="grid-column: span 4">
+          <label for="timeMin">Waktu target (menit)</label>
+          <input id="timeMin" type="number" min="0" step="0.01" placeholder="mis. 27.0" />
+        </div>
+        <div style="grid-column: span 4">
+          <label for="speedKmh">Kecepatan (km/jam) — opsional jika isi jarak & waktu</label>
+          <input id="speedKmh" type="number" min="0" step="0.01" placeholder="mis. 36.00" />
+        </div>
+      </div>
+      <div class="switch">
+        <input id="scale" type="checkbox" checked />
+        <label for="scale" style="margin:0">Skala waktu <span class="pill">60 : 100</span> aktif</label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="lockFromDT" class="btn">Hitung v dari Jarak/Waktu</button>
+        <button id="start" class="btn primary">Mulai</button>
+        <button id="pause" class="btn">Jeda</button>
+        <button id="reset" class="btn">Reset</button>
+      </div>
+      <div id="msg" class="muted" style="margin-top:8px">Isi salah satu: (1) jarak & waktu, atau (2) kecepatan. Tekan <b>Enter</b> untuk mulai.</div>
+    </div>
+
+    <div class="card">
+      <div class="stat"><div class="key">Mulai (jam nyata)</div><div class="val" id="clockStart">—</div></div>
+      <div class="stat"><div class="key">ETA Selesai (jam nyata)</div><div class="val" id="clockETA">—</div></div>
+      <div class="stat"><div class="key">Detik real</div><div class="val" id="tReal">0.0 s</div></div>
+      <div class="stat"><div class="key">Detik rally (60→100)</div><div class="val" id="tRally">0.0 s</div></div>
+      <div class="stat"><div class="key">Jarak berjalan</div><div class="val" id="sKm">0.000 km</div></div>
+      <div class="stat"><div class="key">Sisa jarak</div><div class="val" id="sisaKm">0.000 km</div></div>
+      <div class="stat"><div class="key">Progress</div><div class="val" id="progress">0.0%</div></div>
+      <div class="stat"><div class="key">v (km/detik)</div><div class="val" id="vKms">0.000000</div></div>
+      <div class="stat"><div class="key">v (m/detik)</div><div class="val" id="vMs">0.00</div></div>
+      <div class="stat"><div class="key">v (km/jam)</div><div class="val" id="vKmh">0.00</div></div>
+    </div>
+
+    <div class="muted">Rumus utama: s = v × t<sub>rally</sub>. v (km/s) berasal dari input km/jam ÷ 3600 atau dihitung dari jarak / waktu (menit×60). t<sub>rally</sub> = t<sub>real</sub> × (100/60) jika skala aktif.</div>
+  </div>
+
+  <script src="sub-calc.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+
+    const distInput   = $('dist');
+    const timeMinInput= $('timeMin');
+    const speedKmhInp = $('speedKmh');
+    const scaleChk    = $('scale');
+
+    const lockBtn  = $('lockFromDT');
+    const startBtn = $('start');
+    const pauseBtn = $('pause');
+    const resetBtn = $('reset');
+    const msgEl    = $('msg');
+
+    const clockStartEl = $('clockStart');
+    const clockETAEl   = $('clockETA');
+
+    const tRealEl  = $('tReal');
+    const tRallyEl = $('tRally');
+    const sKmEl    = $('sKm');
+    const sisaKmEl = $('sisaKm');
+    const progEl   = $('progress');
+    const vKmsEl   = $('vKms');
+    const vMsEl    = $('vMs');
+    const vKmhEl   = $('vKmh');
+
+    const SCALE = 100/60; // 1.666...
+
+    let started=false, paused=false;
+    let t0=0, accPause=0, tPauseStart=0;
+    let v_km_s=0, v_km_h=0;
+    let targetDistKm = 0;
+    let targetRallySec = null; // jika pakai jarak & waktu
+
+    function fmt(n,d=2){ return Number(n).toFixed(d); }
+    function now(){ return performance.now(); }
+    function wallTime(d){ return new Date(d).toLocaleTimeString([], {hour12:false}); }
+
+    function realSeconds(){ if(!started) return 0; return Math.max(0,(now()-t0-accPause)/1000); }
+    function rallySeconds(){ const t=realSeconds(); return t*(scaleChk.checked?SCALE:1); }
+
+    function updateVelocityDisplays(){
+      vKmsEl.textContent = fmt(v_km_s,6);
+      vMsEl.textContent  = fmt(v_km_s*1000,2);
+      vKmhEl.textContent = fmt(v_km_h,2);
+    }
+
+    function resolveInputsToSpeed(){
+      const dKm = parseFloat(distInput.value);
+      const tMin= parseFloat(timeMinInput.value);
+      const vKmh= parseFloat(speedKmhInp.value);
+
+      let useVkmh = Number.isFinite(vKmh) && vKmh>0;
+      let useDT   = Number.isFinite(dKm) && dKm>0 && Number.isFinite(tMin) && tMin>0;
+
+      if(!useVkmh && !useDT){
+        throw new Error('Isi kecepatan km/jam atau pasangan jarak & waktu.');
+      }
+      let vkmh = vKmh || (dKm / (tMin/60)); // dari D/T: km / jam
+      let vkms = vkmh/3600; // km/s
+
+      targetDistKm = Number.isFinite(dKm) && dKm>0 ? dKm : 0;
+      targetRallySec = useDT ? tMin*60 : (targetDistKm>0? (targetDistKm/vkms): null);
+
+      v_km_h = vkmh;
+      v_km_s = vkms;
+
+      updateVelocityDisplays();
+
+      // Hitung ETA selesai real-clock bila targetRallySec tersedia
+      const startReal = Date.now();
+      clockStartEl.textContent = wallTime(startReal);
+      if(targetRallySec!=null){
+        const realSecToFinish = targetRallySec / (scaleChk.checked?SCALE:1);
+        const eta = startReal + realSecToFinish*1000;
+        clockETAEl.textContent = wallTime(eta);
+      } else {
+        clockETAEl.textContent = '—';
+      }
+
+      // Pesan konsistensi jika v dari D/T dan input v berbeda
+      if(useVkmh && useDT){
+        const vFromDT = dKm/(tMin/60);
+        const diffPct = Math.abs(vFromDT - vKmh)/vFromDT*100;
+        if(diffPct>1){
+          msgEl.innerHTML = `<span class="warn">Peringatan:</span> v dari D/T = ${fmt(vFromDT,2)} km/jam ≠ input v = ${fmt(vKmh,2)} km/jam (`+fmt(diffPct,2)+`%). Dipakai: input v.`;
+          // pakai input v
+          v_km_h = vKmh; v_km_s = vKmh/3600; updateVelocityDisplays();
+          // targetRallySec tetap dari D/T jika tersedia karena itu target waktu
+        } else {
+          msgEl.innerHTML = '<span class="ok">Konsisten.</span> v cocok dengan D/T.';
+        }
+      } else {
+        msgEl.textContent = 'Siap. Tekan Mulai atau Enter.';
+      }
+    }
+
+    function distanceKmAtNow(){ return v_km_s * rallySeconds(); }
+
+    let timer=null;
+    function tick(){
+      const tr = realSeconds();
+      const ty = rallySeconds();
+      let s  = distanceKmAtNow();
+
+      // stop pada target jarak atau target waktu jika ada
+      let finished=false;
+      if(targetDistKm>0 && s>=targetDistKm){ s=targetDistKm; finished=true; }
+      if(targetRallySec!=null && ty>=targetRallySec){ finished=true; }
+
+      tRealEl.textContent  = fmt(tr,1)+' s';
+      tRallyEl.textContent = fmt(ty,1)+' s';
+      sKmEl.textContent    = fmt(s,3)+' km';
+      const sisa = Math.max(0,(targetDistKm>0? targetDistKm - s : 0));
+      sisaKmEl.textContent = fmt(sisa,3)+' km';
+      const progress = (targetDistKm>0? (s/targetDistKm*100) : (targetRallySec? ty/targetRallySec*100 : 0));
+      progEl.textContent = fmt(Math.min(100,progress),1)+'%';
+
+      if(finished){ clearInterval(timer); }
+    }
+
+    function start(){
+      if(started && paused){
+        paused=false; accPause += (now()-tPauseStart); loop(); return;
+      }
+      if(started) return;
+      try{ resolveInputsToSpeed(); } catch(e){ alert(e.message); return; }
+      started=true; paused=false; accPause=0; t0=now();
+      loop();
+    }
+
+    function loop(){ clearInterval(timer); timer=setInterval(tick,1000); tick(); }
+    function pause(){ if(!started||paused) return; paused=true; tPauseStart=now(); clearInterval(timer); tick(); }
+    function reset(){ started=false; paused=false; v_km_s=0; v_km_h=0; targetDistKm=0; targetRallySec=null; t0=0; accPause=0; tPauseStart=0; clearInterval(timer);
+      tRealEl.textContent='0.0 s'; tRallyEl.textContent='0.0 s'; sKmEl.textContent='0.000 km'; sisaKmEl.textContent='0.000 km'; progEl.textContent='0.0%';
+      vKmsEl.textContent='0.000000'; vMsEl.textContent='0.00'; vKmhEl.textContent='0.00'; clockStartEl.textContent='—'; clockETAEl.textContent='—'; msgEl.textContent='Isi salah satu: (1) jarak & waktu, atau (2) kecepatan. Tekan Enter untuk mulai.'; }
+
+    // Wiring
+    lockBtn.addEventListener('click', ()=>{
+      try{ resolveInputsToSpeed(); } catch(e){ alert(e.message); }
+    });
+    startBtn.addEventListener('click', start);
+    pauseBtn.addEventListener('click', pause);
+    resetBtn.addEventListener('click', reset);
+
+    ;[distInput,timeMinInput,speedKmhInp].forEach(inp=>{
+      inp.addEventListener('keydown', e=>{ if(e.key==='Enter') start(); });
+    });
+
+    // Sub trayek calculator
+    // sub-calc.js will wire itself on load
+  </script>
+</body>
+</html>
